@@ -63,7 +63,9 @@ class PalmCaptureSystem:
         y_max = min(h, y_max + self.margin)
         
         # Crop palm region
-        palm_img = frame[y_min:y_max, x_min:x_max]
+        
+        # Make the frame square
+        palm_img = frame[x_min:x_max, x_min:x_max]
         
         # Resize to standard size if needed
         if palm_img.size > 0:

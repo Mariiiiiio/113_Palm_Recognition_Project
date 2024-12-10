@@ -24,7 +24,7 @@ class PalmCaptureSystem:
             cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
             
         # Frame settings
-        self.roi_size = (640, 640)  # Region of Interest size
+        self.roi_size = (640, 1024)  # Region of Interest size
         self.margin = 50  # Extra margin for palm cropping
         
         # Add path attributes for storing image paths
@@ -65,7 +65,7 @@ class PalmCaptureSystem:
         # Crop palm region
         
         # Make the frame square
-        palm_img = frame[x_min:x_max, x_min:x_max]
+        palm_img = frame[y_min:y_max, x_min:x_max]
         
         # Resize to standard size if needed
         if palm_img.size > 0:
@@ -77,42 +77,66 @@ class PalmCaptureSystem:
         
         return palm_img, display_frame, True
     
-    def capture_images(self, folder_path, mode="visible"):
-        camera = self.visible_cam if mode == "visible" else self.nir_cam
+    def capture_images(self, folder_path):
+        # Create a subfolder for 640x640 images
+        folder_path_640 = os.path.join(folder_path, "640imgs")
+        os.makedirs(folder_path_640, exist_ok=True)
+        
         images_captured = 0
-        image_paths = []  # Store paths of captured images
         
         while images_captured < 10:
-            ret, frame = camera.read()
-            if not ret:
+            # Capture from both cameras
+            ret_visible, visible_frame = self.visible_cam.read()
+            ret_nir, nir_frame = self.nir_cam.read()
+            
+            if not ret_visible or not ret_nir:
                 continue
             
-            cropped_palm, display_frame, palm_detected = self.detect_and_crop_palm(frame)
+            # Process both frames
+            cropped_visible, display_frame_visible, palm_visible = self.detect_and_crop_palm(visible_frame)
+            cropped_nir, display_frame_nir, palm_nir = self.detect_and_crop_palm(nir_frame)
+            
+            # Combine displays side by side
+            combined_display = np.hstack((display_frame_visible, display_frame_nir))
             
             # Display guide and status
-            text = f"{mode.upper()}: {10-images_captured} remaining"
-            cv2.putText(display_frame, text, (10, 30),
+            text = f"Remaining: {10-images_captured}"
+            cv2.putText(combined_display, text, (10, 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            cv2.putText(combined_display, "VISIBLE", (10, 60),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            cv2.putText(combined_display, "NIR", (display_frame_visible.shape[1] + 10, 60),
                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
             
-            cv2.imshow("Camera Feed", display_frame)
+            cv2.imshow("Camera Feed", combined_display)
             
             key = cv2.waitKey(1)
-            if key == ord(' ') and palm_detected and cropped_palm is not None:
-                # Save cropped palm image
+            if (key == ord(' ') and palm_visible and palm_nir and 
+                cropped_visible is not None and cropped_nir is not None):
+                # Save both cropped palm images
                 timestamp = datetime.now().strftime("%H%M%S_%f")
-                filename = f"{folder_path}/{mode}_{timestamp}.jpg"
-                cv2.imwrite(filename, cropped_palm)
-                image_paths.append(filename)  # Store the path
+                
+                # Save original size images
+                vis_filename = f"{folder_path}/visible_{timestamp}.jpg"
+                nir_filename = f"{folder_path}/nir_{timestamp}.jpg"
+                cv2.imwrite(vis_filename, cropped_visible)
+                cv2.imwrite(nir_filename, cropped_nir)
+                self.visible_images.append(vis_filename)
+                self.nir_images.append(nir_filename)
+                
+                # Save 640x640 resized images
+                resized_visible = cv2.resize(cropped_visible, (640, 640))
+                resized_nir = cv2.resize(cropped_nir, (640, 640))
+                
+                vis_filename_640 = f"{folder_path_640}/visible_{timestamp}.jpg"
+                nir_filename_640 = f"{folder_path_640}/nir_{timestamp}.jpg"
+                cv2.imwrite(vis_filename_640, resized_visible)
+                cv2.imwrite(nir_filename_640, resized_nir)
+                
                 images_captured += 1
             
             if key == 27:  # ESC to exit
                 break
-        
-        # Store paths based on mode
-        if mode == "visible":
-            self.visible_images = image_paths
-        else:
-            self.nir_images = image_paths
             
         cv2.destroyAllWindows()
         return images_captured == 10
@@ -124,6 +148,10 @@ class PalmCaptureSystem:
             return
         
         print("\nCreating blended images...")
+        
+        # Ensure 640imgs folder exists
+        folder_path_640 = os.path.join(folder_path, "640imgs")
+        os.makedirs(folder_path_640, exist_ok=True)
         
         # Sort images by timestamp in filename
         self.visible_images.sort()
@@ -141,13 +169,18 @@ class PalmCaptureSystem:
             if visible_img.shape != nir_img.shape:
                 nir_img = cv2.resize(nir_img, (visible_img.shape[1], visible_img.shape[0]))
             
-            # Create blended image (50% visible, 50% NIR)
-            blended = cv2.addWeighted(nir_img, 0.7, visible_img, 0.3, 25)
+            # Create blended image (original size)
+            blended = cv2.addWeighted(nir_img, 0.6, visible_img, 0.4, -25)
+            
+            # Create 640x640 version
+            blended_640 = cv2.resize(blended, (640, 640))
             
             # Extract timestamp from visible image path for consistent naming
             timestamp = vis_path.split('_')[-1]  # Get timestamp part
-            filename = f"{folder_path}/blended_{timestamp}"
-            cv2.imwrite(filename, blended)
+            
+            # Save both versions
+            cv2.imwrite(f"{folder_path}/blended_{timestamp}", blended)
+            cv2.imwrite(f"{folder_path_640}/blended_{timestamp}", blended_640)
         
         # Clear the stored paths
         self.visible_images = []
@@ -164,13 +197,13 @@ class PalmCaptureSystem:
             folder_path = self.create_folder(name)
             
             while True:
-                print("\nCapturing visible light images...")
-                visible_success = self.capture_images(folder_path, "visible")
+                print("\nCapturing visible light/NIR images...")
+                visible_success = self.capture_images(folder_path)
                 
-                print("\nCapturing NIR images...")
-                nir_success = self.capture_images(folder_path, "nir")
+                # print("\nCapturing NIR images...")
+                # nir_success = self.capture_images(folder_path)
                 
-                if visible_success and nir_success:
+                if visible_success:
                     print("\nCapture complete!")
                     self.create_blended_images(folder_path)
                 

@@ -40,7 +40,7 @@ class PalmImageCapture:
         palm_detected = False
         for contour in contours:
             # Check if the contour is large enough to be a hand
-            if cv2.contourArea(contour) > 2000:
+            if cv2.contourArea(contour) > 5000:
                 # Draw contour on debug frame
                 cv2.drawContours(debug_frame, [contour], -1, (0, 255, 0), 2)
                 # if cv2.waitKey(1) & 0xFF == ord('c'):

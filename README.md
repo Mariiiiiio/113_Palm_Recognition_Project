@@ -33,7 +33,7 @@ dataset/
 - Each image has a corresponding .txt file in YOLO format
 - Format: `<class> <x_center> <y_center> <width> <height>`
 - Coordinates are normalized to [0, 1]
-- Classes: [List of your palm classes]
+
 
 ## Getting Started
 

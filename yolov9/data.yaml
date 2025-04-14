@@ -1,0 +1,16 @@
+
+train: yolov9/datasets/train/images
+val: yolov9/datasets/valid/images
+test: yolov9/datasets/test/images
+
+nc: 23
+# names: ['01', '010', '011', '012', '013', '014', '015', '02', '03', '04', '05', '06', '07', '08', '09']
+names: ['1_person', '2_person', '3_person', '4_person', 'ANDY', 'BEAR', 'BOB', 'Chia', 'Jed', 'Jun', 'KENT', 'Ken', 'MAILICE', 'PUFAN', 'Pak_Vincent', 'SAM', 'Seanyuan', 'Tsuta', 'Ver', 'YUDIE', 'YiJun', 'malaikat', 'nes']
+
+
+roboflow:
+  license: CC BY 4.0
+  project: gan-v30in
+  url: https://universe.roboflow.com/feng-chia-university-wlii3/gan-v30in/dataset/10
+  version: 10
+  workspace: feng-chia-university-wlii3

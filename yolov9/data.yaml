@@ -8,9 +8,3 @@ nc: 23
 names: ['1_person', '2_person', '3_person', '4_person', 'ANDY', 'BEAR', 'BOB', 'Chia', 'Jed', 'Jun', 'KENT', 'Ken', 'MAILICE', 'PUFAN', 'Pak_Vincent', 'SAM', 'Seanyuan', 'Tsuta', 'Ver', 'YUDIE', 'YiJun', 'malaikat', 'nes']
 
 
-roboflow:
-  license: CC BY 4.0
-  project: gan-v30in
-  url: https://universe.roboflow.com/feng-chia-university-wlii3/gan-v30in/dataset/10
-  version: 10
-  workspace: feng-chia-university-wlii3
